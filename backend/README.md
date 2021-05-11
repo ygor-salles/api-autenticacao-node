@@ -3,10 +3,6 @@
 * Instalar as dependencias:
 
 ```bash
-npm install
-```
-
-```bash
 yarn
 ```
 
@@ -19,7 +15,7 @@ yarn dev
 * Criar uma migration:
 
 ```bash
-yarn typeorm migration:create -n CreateUsers
+yarn typeorm migration:create -n CreateExample
 ```
 
 * Rodar as migrations
