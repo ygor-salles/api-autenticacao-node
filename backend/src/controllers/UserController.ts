@@ -2,11 +2,13 @@ import { Request, Response } from "express";
 import { getCustomRepository } from "typeorm";
 import * as yup from 'yup';
 import { UserRespository } from "../repositories/UserRepository";
+import { UserService } from "../services/UserService";
 
 class UserController {
     async create(req: Request, resp: Response) {
         const { name, email, password, confirm_password, admin } = req.body
 
+        //Validação dos campos
         const schema = yup.object().shape({
             name: yup.string().required('Nome é obrigatório'),
             email: yup.string().email('E-mail incorreto').required('E-mail é obrigatório'),
@@ -24,22 +26,19 @@ class UserController {
             return resp.status(400).json({ message: 'As senhas não conferem' })
         }
 
-        const connectionUser = getCustomRepository(UserRespository);
+        // Conexão com o banco de dados
+        const userService = new UserService()
+        try {
+            const user = await userService.create(name, email, password, admin)
+            if(user.status === 201){
+                return resp.status(201).json(user.obj);
+            } else {
+                return resp.status(user.status).json({message: user.message})
+            }            
+        } catch (error) {
+            return resp.status(400).json({ message: error })
+        }
 
-        const userExists = await connectionUser.findOne({ withDeleted: true, where: { email }})
-        if (userExists && userExists.deleted_at !== null) {
-            await connectionUser.update(userExists.id, { name, email, password, admin, deleted_at: null })
-            return resp.status(200).json('Usuário registrado com sucesso!')
-        }
-        else if (userExists) {
-            return resp.status(404).json({ message: 'Usuário já existe!' })
-        }
-        else {
-            const user = connectionUser.create({ name, email, password, admin })
-            await connectionUser.save(user)
-            delete user.password
-            return resp.status(201).json(user)
-        }
     }
 
     async ready(req: Request, resp: Response) {
