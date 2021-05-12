@@ -1,14 +1,13 @@
 import { Request, Response } from "express";
-import { getCustomRepository } from "typeorm";
 import * as yup from 'yup';
-import { UserRespository } from "../repositories/UserRepository";
 import { UserService } from "../services/UserService";
 
 class UserController {
     async create(req: Request, resp: Response) {
+        // Dados recebidos na requisição
         const { name, email, password, confirm_password, admin } = req.body
 
-        //Validação dos campos
+        // Validação dos campos recebidos no corpo da requisição
         const schema = yup.object().shape({
             name: yup.string().required('Nome é obrigatório'),
             email: yup.string().email('E-mail incorreto').required('E-mail é obrigatório'),
@@ -26,7 +25,7 @@ class UserController {
             return resp.status(400).json({ message: 'As senhas não conferem' })
         }
 
-        // Conexão com o banco de dados
+        // Conexão com o banco de dados chamando a service
         const userService = new UserService()
         try {
             const user = await userService.create(name, email, password, admin)
@@ -36,42 +35,44 @@ class UserController {
                 return resp.status(user.status).json({message: user.message})
             }            
         } catch (error) {
-            return resp.status(400).json({ message: error })
+            return resp.status(400).json({ message: 'Falha de conexão com o banco de dados' })
         }
 
     }
 
     async ready(req: Request, resp: Response) {
-        const connectionUser = getCustomRepository(UserRespository)
-        const allUsers = await connectionUser.find()
-        allUsers.forEach(user => {
-            delete user.password
-        })
-        return resp.json(allUsers)
+        const userService = new UserService()
+        try {
+            const allUsers = await userService.ready()
+            return resp.json(allUsers)
+        } catch (error) {
+            return resp.status(400).json({ message: 'Falha de conexão com o banco de dados' })
+        }
     }
 
     async readyById(req: Request, resp: Response) {
         const { id } = req.params
-
-        const connectionUser = getCustomRepository(UserRespository)
-        const user = await connectionUser.findOne({ id })
-        if (user) {
-            delete user.password
-            return resp.json(user)
+        const userService = new UserService()
+        try {
+            const user = await userService.readyById(id)
+            if(user.status === 200){
+                return resp.json(user.obj)
+            }
+            return resp.status(user.status).json({ message: user.message })
+        } catch (error) {
+            return resp.status(400).json({ message: 'Falha de conexão com o banco de dados' }) 
         }
-        return resp.status(404).json({ message: 'Usuário não existe!' })
     }
 
     async softDelete(req: Request, resp: Response) {
         const { id } = req.params
-
-        const connectionUser = getCustomRepository(UserRespository)
-        const user = await connectionUser.findOne({ id })
-        if (user) {
-            await connectionUser.softDelete(user.id);
-            return resp.status(200).json({ message: 'Usuário removido com sucesso!' })
+        const userService = new UserService()
+        try {
+            const user = await userService.softDelete(id)
+            return resp.status(user.status).json({ message: user.message })
+        } catch (error) {
+            return resp.status(400).json({ message: 'Falha de conexão com o banco de dados' })
         }
-        return resp.status(404).json({ message: 'Usuário não existe!' })
     }
 
     async update(req: Request, resp: Response) {
@@ -94,15 +95,13 @@ class UserController {
             return resp.status(400).json({ message: 'As senhas não conferem' })
         }
 
-        const connectionUser = getCustomRepository(UserRespository)
-        const user = await connectionUser.findOne({ id })
-
-        if (user) {
-            await connectionUser.update(user.id, { name, email, password, admin })
-            return resp.status(200).json({ message: 'Usuário atualizado com sucesso' })
+        const userService = new UserService()
+        try {
+            const user = await userService.update(id, name, email, password, admin)
+            return resp.status(user.status).json({ message: user.message })
+        } catch (error) {
+            return resp.status(400).json({ message: 'Falha de conexão com o banco de dados' }) 
         }
-
-        return resp.status(404).json({ message: 'Usuário não existe' })
     }
 }
 
